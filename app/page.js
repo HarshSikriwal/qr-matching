@@ -96,13 +96,14 @@ export default function Home() {
                             alt="image"
                             src={URL.createObjectURL(file)}
                             fill
-                            className="invisible absolute"
+                            className="invisible absolute grayscale"
                         />
                         <Image
                             src={URL.createObjectURL(file)}
                             alt="Uploaded Image Preview"
                             width={250}
                             height={300}
+                            className="grayscale"
                             crossOrigin="anonymous"
                         />
                     </div>
