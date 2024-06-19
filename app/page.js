@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import jsQR from "jsqr";
 
@@ -22,16 +22,41 @@ export default function Home() {
       const width = imgElement.width * ratio;
       const height = imgElement.height * ratio;
 
+      const naturalWidth = imgElement.naturalWidth * ratio;
+      const naturalHeight = imgElement.naturalHeight * ratio;
+
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.drawImage(imgElement, dx, dy, Math.floor(width), Math.floor(height));
+        ctx.drawImage(
+          imgElement,
+          dx,
+          dy,
+          Math.floor(naturalWidth),
+          Math.floor(naturalHeight),
+          0,
+          0,
+          Math.floor(width),
+          Math.floor(height)
+        );
         const imageData = ctx.getImageData(
           0,
           0,
           Math.floor(width),
           Math.floor(height)
         );
-        console.log(imageData);
+        // const newCanvas = document.createElement("canvas");
+        // newCanvas.width = imageData.width;
+        // newCanvas.height = imageData.height;
+        // const newCtx = newCanvas.getContext("2d");
+        // newCtx.putImageData(imageData, 0, 0);
+
+        // const dataUrl = newCanvas.toDataURL("image/png");
+        // const link = document.createElement("a");
+        // link.href = dataUrl;
+        // link.download = "image.png";
+        // document.body.appendChild(link);
+        // link.click();
+        // document.body.removeChild(link);
 
         const qrCode = jsQR(
           imageData.data,
@@ -57,35 +82,36 @@ export default function Home() {
     }
   };
 
-  const handleImageLoad = async () => {
+  const handleImageLoad = useCallback(async () => {
     const hiddenImage = document.getElementById("imageToDecode");
-    if (hiddenImage) {
+    if (hiddenImage && !result) {
       let embeddedQRData;
-      let ratio = 1;
       let corner = 1;
+      embeddedQRData = await decodeQRCode(hiddenImage, 1, 0, 0);
       while (!embeddedQRData && corner <= 4) {
-        while (!embeddedQRData && ratio > 0.7) {
-          let dx, dy;
-          switch (corner) {
-            case 1:
-              dx = 0;
-              dy = 0;
-              break;
-            case 2:
-              dx = 0;
-              dy = hiddenImage.height * (1 - ratio);
-            case 3:
-              dx = hiddenImage.width * (1 - ratio);
-              dy = hiddenImage.height * (1 - ratio);
-            case 4:
-              dx = hiddenImage.width * (1 - ratio);
-              dy = 0;
-            default:
-              break;
-          }
-          embeddedQRData = await decodeQRCode(hiddenImage, ratio, dx, dy);
-          ratio *= 0.9;
+        let dx, dy;
+        switch (corner) {
+          case 1:
+            dx = 0;
+            dy = 0;
+            break;
+          case 2:
+            dx = 0;
+            dy = hiddenImage.naturalHeight * (0.35);
+            break;
+          case 3:
+            dx = hiddenImage.naturalWidth * (0.35);
+            dy = hiddenImage.naturalHeight * (0.35);
+            break;
+          case 4:
+            dx = hiddenImage.naturalWidth * (0.35);
+            dy = 0;
+            break;
+          default:
+            break;
         }
+        embeddedQRData = await decodeQRCode(hiddenImage,  0.65, dx, dy);
+        console.log(dx, dy)
         corner++;
       }
 
@@ -97,7 +123,7 @@ export default function Home() {
       // Clean up the object URL to avoid memory leaks
       URL.revokeObjectURL(hiddenImage.src);
     }
-  };
+  }, [file]);
 
   useEffect(() => {
     return () => {
@@ -133,7 +159,7 @@ export default function Home() {
             />
           </div>
         )}
-        {result !== null && <p className="text-white">Result: {result}</p>}
+        {result && <p className="text-white">Result: {result}</p>}
       </div>
     </main>
   );
