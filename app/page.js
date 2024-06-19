@@ -13,7 +13,7 @@ export default function Home() {
     return URL.createObjectURL(file);
   };
   console.log("result", result);
-  const decodeQRCode = (imgElement, ratio) => {
+  const decodeQRCode = (imgElement, ratio, dx, dy) => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas");
       canvas.width = imgElement.width * ratio;
@@ -24,13 +24,7 @@ export default function Home() {
 
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.drawImage(
-          imgElement,
-          0,
-          0,
-          Math.floor(width),
-          Math.floor(height)
-        );
+        ctx.drawImage(imgElement, dx, dy, Math.floor(width), Math.floor(height));
         const imageData = ctx.getImageData(
           0,
           0,
@@ -68,9 +62,30 @@ export default function Home() {
     if (hiddenImage) {
       let embeddedQRData;
       let ratio = 1;
-      while (!embeddedQRData && ratio > 0.7) {
-        embeddedQRData = await decodeQRCode(hiddenImage, ratio);
-        ratio *= 0.9;
+      let corner = 1;
+      while (!embeddedQRData && corner <= 4) {
+        while (!embeddedQRData && ratio > 0.7) {
+          let dx, dy;
+          switch (corner) {
+            case 1:
+              dx = 0;
+              dy = 0;
+              break;
+            case 2:
+              dx = 0;
+              dy = hiddenImage.height * (1 - ratio);
+            case 3:
+              dx = hiddenImage.width * (1 - ratio);
+              dy = hiddenImage.height * (1 - ratio);
+            case 4:
+              dx = hiddenImage.width * (1 - ratio);
+              dy = 0;
+            default:
+              break;
+          }
+          embeddedQRData = await decodeQRCode(hiddenImage, ratio, dx, dy);
+          ratio *= 0.9;
+        }
       }
 
       if (embeddedQRData) {
