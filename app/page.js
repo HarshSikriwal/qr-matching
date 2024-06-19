@@ -1,18 +1,11 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import jsQR from "jsqr";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function Home() {
   const [result, setResult] = useState(null);
   const [file, setFile] = useState(null);
 
-  const hiddenImageRef = useRef(null);
-  const getPreviewUrl = (file) => {
-    if (!file) return null;
-    return URL.createObjectURL(file);
-  };
-  console.log("result", result);
   const decodeQRCode = (imgElement, ratio, dx, dy) => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas");
@@ -44,7 +37,7 @@ export default function Home() {
           Math.floor(width),
           Math.floor(height)
         );
-        
+
         // const newCanvas = document.createElement("canvas");
         // newCanvas.width = imageData.width;
         // newCanvas.height = imageData.height;
@@ -109,8 +102,8 @@ export default function Home() {
             dy = 0;
             break;
           case 5:
-            dx = hiddenImage.naturalWidth * 0.35 / 2;
-            dy = hiddenImage.naturalHeight * 0.35 / 2;
+            dx = (hiddenImage.naturalWidth * 0.35) / 2;
+            dy = (hiddenImage.naturalHeight * 0.35) / 2;
             break;
           default:
             break;
@@ -128,7 +121,7 @@ export default function Home() {
       // Clean up the object URL to avoid memory leaks
       URL.revokeObjectURL(hiddenImage.src);
     }
-  }, [file]);
+  }, [file, result]);
 
   useEffect(() => {
     return () => {
@@ -146,21 +139,13 @@ export default function Home() {
 
         {file && (
           <div className="flex flex-col items-center justify-center">
-            <Image
+            <img
               id="imageToDecode"
               onLoad={handleImageLoad}
               alt="image"
               src={URL.createObjectURL(file)}
               fill
               className="invisible absolute grayscale"
-            />
-            <Image
-              src={URL.createObjectURL(file)}
-              alt="Uploaded Image Preview"
-              width={250}
-              height={300}
-              className="grayscale"
-              crossOrigin="anonymous"
             />
           </div>
         )}
