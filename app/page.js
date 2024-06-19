@@ -86,6 +86,7 @@ export default function Home() {
           embeddedQRData = await decodeQRCode(hiddenImage, ratio, dx, dy);
           ratio *= 0.9;
         }
+        corner++;
       }
 
       if (embeddedQRData) {
