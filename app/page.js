@@ -44,6 +44,7 @@ export default function Home() {
           Math.floor(width),
           Math.floor(height)
         );
+        
         // const newCanvas = document.createElement("canvas");
         // newCanvas.width = imageData.width;
         // newCanvas.height = imageData.height;
@@ -88,7 +89,7 @@ export default function Home() {
       let embeddedQRData;
       let corner = 1;
       embeddedQRData = await decodeQRCode(hiddenImage, 1, 0, 0);
-      while (!embeddedQRData && corner <= 4) {
+      while (!embeddedQRData && corner <= 5) {
         let dx, dy;
         switch (corner) {
           case 1:
@@ -97,21 +98,25 @@ export default function Home() {
             break;
           case 2:
             dx = 0;
-            dy = hiddenImage.naturalHeight * (0.35);
+            dy = hiddenImage.naturalHeight * 0.35;
             break;
           case 3:
-            dx = hiddenImage.naturalWidth * (0.35);
-            dy = hiddenImage.naturalHeight * (0.35);
+            dx = hiddenImage.naturalWidth * 0.35;
+            dy = hiddenImage.naturalHeight * 0.35;
             break;
           case 4:
-            dx = hiddenImage.naturalWidth * (0.35);
+            dx = hiddenImage.naturalWidth * 0.35;
             dy = 0;
+            break;
+          case 5:
+            dx = hiddenImage.naturalWidth * 0.35 / 2;
+            dy = hiddenImage.naturalHeight * 0.35 / 2;
             break;
           default:
             break;
         }
-        embeddedQRData = await decodeQRCode(hiddenImage,  0.65, dx, dy);
-        console.log(dx, dy)
+        embeddedQRData = await decodeQRCode(hiddenImage, 0.65, dx, dy);
+        console.log(dx, dy);
         corner++;
       }
 
