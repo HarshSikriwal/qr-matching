@@ -44,7 +44,13 @@ export default function Home() {
     console.log(`Downloaded image data as ${filename}`);
   };
 
-  const overlayQRCode = (originalCanvas, qrLocation, newQRData, qrCanvas) => {
+  const overlayQRCode = (
+    originalCanvas,
+    qrLocation,
+    newQRData,
+    qrCanvas,
+    decreaseRatio
+  ) => {
     const resultCtx = originalCanvas.getContext("2d");
     if (!resultCtx) return null;
 
@@ -52,25 +58,27 @@ export default function Home() {
     resultCtx.drawImage(originalCanvas, 0, 0);
 
     // Calculate the QR code size (use the average of width and height for more accuracy)
-    const width = Math.ceil(
-      (Math.abs(qrLocation.topRightCorner.x - qrLocation.topLeftCorner.x) +
-        Math.abs(
-          qrLocation.bottomRightCorner.x - qrLocation.bottomLeftCorner.x
-        )) /
-        2
-    );
+    const width =
+      Math.ceil(
+        (Math.abs(qrLocation.topRightCorner.x - qrLocation.topLeftCorner.x) +
+          Math.abs(
+            qrLocation.bottomRightCorner.x - qrLocation.bottomLeftCorner.x
+          )) /
+          2
+      ) * decreaseRatio;
 
-    const height = Math.ceil(
-      (Math.abs(qrLocation.bottomLeftCorner.y - qrLocation.topLeftCorner.y) +
-        Math.abs(
-          qrLocation.bottomRightCorner.y - qrLocation.topRightCorner.y
-        )) /
-        2
-    );
+    const height =
+      Math.ceil(
+        (Math.abs(qrLocation.bottomLeftCorner.y - qrLocation.topLeftCorner.y) +
+          Math.abs(
+            qrLocation.bottomRightCorner.y - qrLocation.topRightCorner.y
+          )) /
+          2
+      ) * decreaseRatio;
 
     // Get the top-left position of the QR code
-    const topLeftX = Math.floor(qrLocation.topLeftCorner.x);
-    const topLeftY = Math.floor(qrLocation.topLeftCorner.y);
+    const topLeftX = Math.floor(qrLocation.topLeftCorner.x) * decreaseRatio;
+    const topLeftY = Math.floor(qrLocation.topLeftCorner.y) * decreaseRatio;
 
     // Add a small buffer to ensure complete coverage of the QR code area
     const bufferPx = 1;
@@ -124,7 +132,7 @@ export default function Home() {
     return originalCanvas;
   };
 
-  const decodeQRCode = (imgElement, ratio, dx, dy) => {
+  const decodeQRCode = (imgElement, ratio, dx, dy, decreaseRatio) => {
     return new Promise((resolve) => {
       // Ensure image is fully loaded
       if (!imgElement.complete) {
@@ -144,8 +152,12 @@ export default function Home() {
             return;
           }
 
-          const width = Math.floor(imgElement.naturalWidth * ratio);
-          const height = Math.floor(imgElement.naturalHeight * ratio);
+          const width = Math.floor(
+            (imgElement.naturalWidth * ratio) / decreaseRatio
+          );
+          const height = Math.floor(
+            (imgElement.naturalHeight * ratio) / decreaseRatio
+          );
 
           // Set canvas dimensions
           canvas.width = width;
@@ -182,6 +194,13 @@ export default function Home() {
 
             const imageData = ctx.getImageData(0, 0, width, height);
 
+            // downloadImageData(
+            //     imageData,
+            //     width,
+            //     height,
+            //     `qr_processed_${width}x${height}_${Date.now()}.png`
+            // );
+
             // Add error handling for QR detection
             try {
               const qrCode = jsQR(imageData.data, width, height);
@@ -214,31 +233,50 @@ export default function Home() {
 
   const handleImageLoad = useCallback(async () => {
     const hiddenImage = document.getElementById("imageToDecode");
-    let mainImageCanvas;
     if (hiddenImage && !result) {
       let decodedResult;
       let corner = 1;
       let ratio = 1;
 
-      decodedResult = await decodeQRCode(hiddenImage, ratio, 0, 0);
-      mainImageCanvas = decodedResult.canvas;
+      const decreaseRatio =
+        hiddenImage.naturalWidth / hiddenImage.naturalHeight <= 0.33 ||
+        hiddenImage.naturalWidth / hiddenImage.naturalHeight >= 3
+          ? Math.sqrt(
+              (hiddenImage.naturalWidth * hiddenImage.naturalHeight) / 1200000
+            )
+          : hiddenImage.naturalWidth / hiddenImage.naturalHeight <= 0.5 ||
+            hiddenImage.naturalWidth / hiddenImage.naturalHeight >= 2
+          ? Math.sqrt(
+              (hiddenImage.naturalWidth * hiddenImage.naturalHeight) / 900000
+            )
+          : Math.sqrt(
+              (hiddenImage.naturalWidth * hiddenImage.naturalHeight) / 640000
+            );
+
+      decodedResult = await decodeQRCode(
+        hiddenImage,
+        ratio,
+        0,
+        0,
+        decreaseRatio
+      );
       ratio = 0.65;
+      let dx, dy;
 
       while (!decodedResult.qrCode && corner <= 5 && ratio === 0.65) {
-        let dx, dy;
         switch (corner) {
-          case 1:
-            dx = 0;
-            dy = 0;
-            break;
-          case 2:
-            dx = 0;
-            dy = hiddenImage.naturalHeight * (1 - ratio);
-            break;
-          case 3:
-            dx = hiddenImage.naturalWidth * (1 - ratio);
-            dy = hiddenImage.naturalHeight * (1 - ratio);
-            break;
+        //   case 1:
+        //     dx = 0;
+        //     dy = 0;
+        //     break;
+        //   case 2:
+        //     dx = 0;
+        //     dy = hiddenImage.naturalHeight * (1 - ratio);
+        //     break;
+        //   case 3:
+        //     dx = hiddenImage.naturalWidth * (1 - ratio);
+        //     dy = hiddenImage.naturalHeight * (1 - ratio);
+        //     break;
           case 4:
             dx = hiddenImage.naturalWidth * (1 - ratio);
             dy = 0;
@@ -250,7 +288,13 @@ export default function Home() {
           default:
             break;
         }
-        decodedResult = await decodeQRCode(hiddenImage, ratio, dx, dy);
+        decodedResult = await decodeQRCode(
+          hiddenImage,
+          ratio,
+          dx,
+          dy,
+          decreaseRatio
+        );
         console.log(dx, dy);
         corner++;
       }
@@ -261,15 +305,52 @@ export default function Home() {
         // Generate new QR code
         const qrCanvas = getQRAsCanvas(qrData, "image/png", true);
 
+        const mainCanvas = document.createElement("canvas");
+        const mainContext = mainCanvas.getContext("2d");
+
+        mainCanvas.width = hiddenImage.naturalWidth;
+        mainCanvas.height = hiddenImage.naturalHeight;
+
+        mainContext.drawImage(
+          hiddenImage,
+          0,
+          0,
+          hiddenImage.naturalWidth,
+          hiddenImage.naturalHeight
+        );
+
+        const finalLocation =
+          dx >= 0 && dy >= 0
+            ? {
+                topRightCorner: {
+                  x: decodedResult.qrCode.location.topRightCorner.x + dx,
+                  y: decodedResult.qrCode.location.topRightCorner.y + dy,
+                },
+                topLeftCorner: {
+                  x: decodedResult.qrCode.location.topLeftCorner.x + dx,
+                  y: decodedResult.qrCode.location.topLeftCorner.y + dy,
+                },
+                bottomRightCorner: {
+                  x: decodedResult.qrCode.location.bottomRightCorner.x + dx,
+                  y: decodedResult.qrCode.location.bottomRightCorner.y + dy,
+                },
+                bottomLeftCorner: {
+                  x: decodedResult.qrCode.location.bottomLeftCorner.x + dx,
+                  y: decodedResult.qrCode.location.bottomLeftCorner.y + dy,
+                },
+              }
+            : { ...decodedResult.qrCode.location };
+
         // Replace QR code in the image
         const processedCanvas = overlayQRCode(
-          mainImageCanvas,
-          decodedResult.qrCode.location,
+          mainCanvas,
+          finalLocation,
           {
             width: qrCanvas.width,
             height: qrCanvas.height,
           },
-          qrCanvas
+          qrCanvas,
+          decreaseRatio
         );
 
         if (processedCanvas) {

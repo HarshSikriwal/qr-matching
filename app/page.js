@@ -1,67 +1,136 @@
 "use client";
 import jsQR from "jsqr";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
   const [result, setResult] = useState(null);
   const [file, setFile] = useState(null);
 
+  const downloadImageData = (imageData, width, height, filename) => {
+    // Create a temporary canvas to hold the image data
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+
+    const tempCtx = tempCanvas.getContext("2d");
+    if (!tempCtx) return;
+
+    // Put the image data on the canvas
+    tempCtx.putImageData(imageData, 0, 0);
+
+    // Convert canvas to data URL
+    const dataURL = tempCanvas.toDataURL("image/png");
+
+    // Create download link
+    const downloadLink = document.createElement("a");
+    downloadLink.href = dataURL;
+    downloadLink.download = filename;
+
+    // Add to DOM, click and remove (invisible to user)
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+
+    console.log(`Downloaded image data as ${filename}`);
+  };
+
   const decodeQRCode = (imgElement, ratio, dx, dy) => {
     return new Promise((resolve) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = imgElement.width * ratio;
-      canvas.height = imgElement.height * ratio;
-
-      const width = imgElement.width * ratio;
-      const height = imgElement.height * ratio;
-
-      const naturalWidth = imgElement.naturalWidth * ratio;
-      const naturalHeight = imgElement.naturalHeight * ratio;
-
-      console.log("height", width, height);
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(
-          imgElement,
-          dx,
-          dy,
-          Math.floor(naturalWidth),
-          Math.floor(naturalHeight),
-          0,
-          0,
-          Math.floor(width),
-          Math.floor(height)
-        );
-        const imageData = ctx.getImageData(
-          0,
-          0,
-          Math.floor(width),
-          Math.floor(height)
-        );
-
-        // const newCanvas = document.createElement("canvas");
-        // newCanvas.width = imageData.width;
-        // newCanvas.height = imageData.height;
-        // const newCtx = newCanvas.getContext("2d");
-        // newCtx.putImageData(imageData, 0, 0);
-
-        // const dataUrl = newCanvas.toDataURL("image/png");
-        // const link = document.createElement("a");
-        // link.href = dataUrl;
-        // link.download = "image.png";
-        // document.body.appendChild(link);
-        // link.click();
-        // document.body.removeChild(link);
-
-        const qrCode = jsQR(
-          imageData.data,
-          Math.floor(width),
-          Math.floor(height)
-        );
-        resolve(qrCode ? qrCode.data : null);
+      // Ensure image is fully loaded
+      if (!imgElement.complete) {
+        imgElement.onload = () => performDecode();
       } else {
-        resolve(null);
+        performDecode();
+      }
+
+      function performDecode() {
+        const canvas = document.createElement("canvas");
+
+        // Wait for a frame to ensure browser has completed image processing
+        requestAnimationFrame(() => {
+          // Ensure we have valid dimensions
+          if (!imgElement.naturalWidth || !imgElement.naturalHeight) {
+            resolve(null);
+            return;
+          }
+
+          const decreaseRatio =
+            imgElement.naturalWidth / imgElement.naturalHeight <= 0.33 ||
+            imgElement.naturalWidth / imgElement.naturalHeight >= 3
+              ? Math.sqrt(
+                  (imgElement.naturalWidth * imgElement.naturalHeight) / 1200000
+                )
+              : imgElement.naturalWidth / imgElement.naturalHeight <= 0.5 ||
+                imgElement.naturalWidth / imgElement.naturalHeight >= 2
+              ? Math.sqrt(
+                  (imgElement.naturalWidth * imgElement.naturalHeight) / 900000
+                )
+              : Math.sqrt(
+                  (imgElement.naturalWidth * imgElement.naturalHeight) / 640000
+                );
+
+          const width = Math.floor(
+            (imgElement.naturalWidth * ratio) / decreaseRatio
+          );
+          const height = Math.floor(
+            (imgElement.naturalHeight * ratio) / decreaseRatio
+          );
+
+          // Set canvas dimensions
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d", {
+            willReadFrequently: true,
+          });
+
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+
+          // Clear canvas before drawing
+          ctx.clearRect(0, 0, width, height);
+
+          // Enable image smoothing for better quality
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+
+          try {
+            ctx.drawImage(
+              imgElement,
+              Math.floor(dx),
+              Math.floor(dy),
+              Math.floor(imgElement.naturalWidth * ratio),
+              Math.floor(imgElement.naturalHeight * ratio),
+              0,
+              0,
+              width,
+              height
+            );
+
+            const imageData = ctx.getImageData(0, 0, width, height);
+
+            // downloadImageData(
+            //     imageData,
+            //     width,
+            //     height,
+            //     `qr_processed_${width}x${height}_${Date.now()}.png`
+            // );
+
+            // Add error handling for QR detection
+            try {
+              const qrCode = jsQR(imageData.data, width, height);
+              resolve(qrCode ? qrCode.data : null);
+            } catch (qrError) {
+              console.error("QR Detection error:", qrError);
+              resolve(null);
+            }
+          } catch (drawError) {
+            console.error("Canvas drawing error:", drawError);
+            resolve(null);
+          }
+        });
       }
     });
   };
